@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VISUAL AID</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+        .title-bar {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 24px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 40px); /* Subtract title bar height */
+            margin: 0;
+        }
+        .left {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+        .left-top {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .left-top img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 5px;
+        }
+        .left-bottom {
+            background-color: #f9f9f9;
+            flex: 1;
+            display: flex;
+            border-radius: 5%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 3%;
+        }
+        .right {
+            width: 50%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #captured-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        #uploaded-img {
+            width:60%;
+            height:auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+        #caption {
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-top: auto;
+        }
+        .replay-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .replay-button:hover {
+            background-color: #2980b9;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #camera-feed{
+        width:60%;
+        height:auto;
+       }
+    </style>
+</head>
+<body>
+    <div class="title-bar">VISUAL AID</div>
+    <div class="container">
+        <div class="left">
+            <div class="left-top">
+                <img src="{{ url_for('video_feed_laptop') }}" alt="Laptop Camera Feed" id="camera-feed"><br>
+                <button id="capture-button">Capture Image</button>
+            </div>
+            <div class="left-bottom">
+                <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+                    <input type="file" id="file-input" name="file" accept="image/*">
+                    <button type="submit">Upload Image</button>
+                </form>
+                <img id="uploaded-img" src="">
+            </div>
+        </div>
+        <div class="right">
+            <img id="captured-image" src="">
+            <p id="caption"> Caption appears here</p>
+                <button class="replay-button" id="replay-button">Replay Caption</button>
+        </div>
+    </div>
+    <script>
+        const captureButton = document.getElementById('capture-button');
+        const cameraFeed = document.getElementById('camera-feed');
+        const capturedImage = document.getElementById('captured-image');
+
+        // Event listener for capture button
+        captureButton.addEventListener('click', function() {
+            // Create canvas to draw image
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = cameraFeed.width;
+            canvas.height = cameraFeed.height;
+            context.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas image to data URL
+            const dataURL = canvas.toDataURL('image/jpeg');
+            capturedImage.src = dataURL;
+            // Create form data with image data
+            const formData = new FormData();
+            formData.append('file', dataURLtoFile(dataURL, 'captured_image.jpg'));
+
+            // Send POST request to upload image
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const caption = data.caption;
+                document.getElementById('caption').textContent = caption;
+                readOutLoud(caption);
+                // Handle caption response as needed
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+
+        // Convert data URL to file
+        function dataURLtoFile(dataurl, filename) {
+            const arr = dataurl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, { type: mime });
+        }
+
+        function readOutLoud(text) {
+            const speech = new SpeechSynthesisUtterance();
+            speech.text = text;
+            speech.volume = 1;
+            speech.rate = 1;
+            speech.pitch = 1;
+            window.speechSynthesis.speak(speech);
+        }
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
+            const img = document.getElementById('uploaded-img');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+                img.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            const formData = new FormData();
+            formData.append('file', file);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const caption = data.caption;
+                document.getElementById('caption').textContent = caption;
+                readOutLoud(caption);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById('replay-button').addEventListener('click', function() {
+            const caption = document.getElementById('caption').textContent;
+            readOutLoud(caption);
+        });
+    </script>
+</body>
+</html>

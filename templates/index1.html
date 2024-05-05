@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Captioning Web App</title>
+    <style>
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .left {
+            width: 50%;
+        }
+        .right {
+            width: 50%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left">
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="file">
+                <button type="submit">Upload Image</button>
+            </form>
+            <img id="uploaded-img" src="" style="display: none;">
+        </div>
+        <div class="right">
+            <p id="caption"></p>
+        </div>
+    </div>
+    <script>
+        function readOutLoud(text) {
+            const speech = new SpeechSynthesisUtterance();
+            speech.text = text;
+            speech.volume = 1;
+            speech.rate = 1;
+            speech.pitch = 1;
+            window.speechSynthesis.speak(speech);
+        }
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
+            const img = document.getElementById('uploaded-img');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+                img.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            const formData = new FormData();
+            formData.append('file', file);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const caption = data.caption;
+                document.getElementById('caption').textContent = caption;
+                readOutLoud(caption);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
